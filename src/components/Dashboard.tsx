@@ -178,12 +178,51 @@ export default function Dashboard({
           <div className="text-center py-12 text-muted-fg">Loading documents...</div>
         ) : (
           <>
-            {owned.length === 0 && shared.length === 0 ? (
-              <div className="text-center py-20">
-                <FileText className="w-12 h-12 text-muted-fg/50 mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-1">No documents yet</h3>
-                <p className="text-muted-fg mb-6">
-                  Create a new document or import a .txt, .md, or .docx file to get started.
+            {owned.length > 0 ? (
+              <div className="grid gap-3 mb-8">
+                {owned.map((doc) => (
+                  <div
+                    key={doc.id}
+                    onClick={() => router.push(`/editor/${doc.id}`)}
+                    className="bg-background rounded-xl border border-border p-4 hover:shadow-md transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3 min-w-0">
+                        <FileText className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                        <div className="min-w-0">
+                          <h3 className="font-medium truncate">
+                            {doc.title}
+                          </h3>
+                          <div className="flex items-center gap-3 mt-1 text-xs text-muted-fg">
+                            <span className="inline-flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {timeAgo(doc.updatedAt)}
+                            </span>
+                            {doc.shares.length > 0 && (
+                              <span className="inline-flex items-center gap-1">
+                                <Users className="w-3 h-3" />
+                                Shared with {doc.shares.length}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => deleteDoc(doc.id, e)}
+                        className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-danger/10 hover:text-danger transition-all cursor-pointer"
+                        title="Delete document"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="mb-8 rounded-xl border border-dashed border-border bg-muted/20 p-8 text-center">
+                <FileText className="w-10 h-10 text-muted-fg/40 mx-auto mb-3" />
+                <p className="text-sm text-muted-fg mb-4">
+                  You haven&apos;t created any documents yet.
                 </p>
                 <button
                   onClick={createDoc}
@@ -193,84 +232,46 @@ export default function Dashboard({
                   Create Your First Document
                 </button>
               </div>
-            ) : (
-              <>
-                {owned.length > 0 && (
-                  <div className="grid gap-3 mb-8">
-                    {owned.map((doc) => (
-                      <div
-                        key={doc.id}
-                        onClick={() => router.push(`/editor/${doc.id}`)}
-                        className="bg-background rounded-xl border border-border p-4 hover:shadow-md transition-all cursor-pointer group"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-start gap-3 min-w-0">
-                            <FileText className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                            <div className="min-w-0">
-                              <h3 className="font-medium truncate">
-                                {doc.title}
-                              </h3>
-                              <div className="flex items-center gap-3 mt-1 text-xs text-muted-fg">
-                                <span className="inline-flex items-center gap-1">
-                                  <Clock className="w-3 h-3" />
-                                  {timeAgo(doc.updatedAt)}
-                                </span>
-                                {doc.shares.length > 0 && (
-                                  <span className="inline-flex items-center gap-1">
-                                    <Users className="w-3 h-3" />
-                                    Shared with {doc.shares.length}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          <button
-                            onClick={(e) => deleteDoc(doc.id, e)}
-                            className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-danger/10 hover:text-danger transition-all cursor-pointer"
-                            title="Delete document"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+            )}
+
+            <div className="flex items-center gap-2 mb-4">
+              <Share2 className="w-4 h-4 text-muted-fg" />
+              <h2 className="text-xl font-semibold">Shared with Me</h2>
+            </div>
+
+            {shared.length > 0 ? (
+              <div className="grid gap-3">
+                {shared.map((doc) => (
+                  <div
+                    key={doc.id}
+                    onClick={() => router.push(`/editor/${doc.id}`)}
+                    className="bg-background rounded-xl border border-border p-4 hover:shadow-md transition-all cursor-pointer"
+                  >
+                    <div className="flex items-start gap-3">
+                      <FileText className="w-5 h-5 text-success mt-0.5 flex-shrink-0" />
+                      <div>
+                        <h3 className="font-medium truncate">
+                          {doc.title}
+                        </h3>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-fg">
+                          <span>by {doc.owner.name}</span>
+                          <span className="inline-flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {timeAgo(doc.updatedAt)}
+                          </span>
                         </div>
                       </div>
-                    ))}
+                    </div>
                   </div>
-                )}
-
-                {shared.length > 0 && (
-                  <>
-                    <div className="flex items-center gap-2 mb-4">
-                      <Share2 className="w-4 h-4 text-muted-fg" />
-                      <h2 className="text-xl font-semibold">Shared with Me</h2>
-                    </div>
-                    <div className="grid gap-3">
-                      {shared.map((doc) => (
-                        <div
-                          key={doc.id}
-                          onClick={() => router.push(`/editor/${doc.id}`)}
-                          className="bg-background rounded-xl border border-border p-4 hover:shadow-md transition-all cursor-pointer"
-                        >
-                          <div className="flex items-start gap-3">
-                            <FileText className="w-5 h-5 text-success mt-0.5 flex-shrink-0" />
-                            <div>
-                              <h3 className="font-medium truncate">
-                                {doc.title}
-                              </h3>
-                              <div className="flex items-center gap-3 mt-1 text-xs text-muted-fg">
-                                <span>by {doc.owner.name}</span>
-                                <span className="inline-flex items-center gap-1">
-                                  <Clock className="w-3 h-3" />
-                                  {timeAgo(doc.updatedAt)}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center">
+                <Users className="w-8 h-8 text-muted-fg/40 mx-auto mb-2" />
+                <p className="text-sm text-muted-fg">
+                  No documents have been shared with you yet.
+                </p>
+              </div>
             )}
           </>
         )}

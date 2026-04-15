@@ -1,17 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X, UserPlus, Trash2, Crown, Eye, Pencil } from "lucide-react";
 import { cn } from "@/lib/cn";
 
+type UserInfo = { id: string; name: string; email: string };
+
 type ShareUser = {
-  user: { id: string; name: string; email: string };
+  user: UserInfo;
   permission: string;
 };
 
 type ShareModalProps = {
   docId: string;
-  owner: { id: string; name: string; email: string };
+  owner: UserInfo;
   shares: ShareUser[];
   isOwner: boolean;
   onClose: () => void;
@@ -31,12 +33,76 @@ export default function ShareModal({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const [allUsers, setAllUsers] = useState<UserInfo[]>([]);
+  const [suggestions, setSuggestions] = useState<UserInfo[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeSuggestion, setActiveSuggestion] = useState(-1);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetch("/api/users")
+      .then((r) => r.json())
+      .then((users: UserInfo[]) => setAllUsers(users))
+      .catch(() => {});
+  }, []);
+
+  function getFilteredUsers(query: string) {
+    if (!query.trim()) return [];
+    const q = query.toLowerCase();
+    const excludeIds = new Set([owner.id, ...shares.map((s) => s.user.id)]);
+    return allUsers.filter(
+      (u) =>
+        !excludeIds.has(u.id) &&
+        (u.email.toLowerCase().includes(q) ||
+          u.name.toLowerCase().includes(q))
+    );
+  }
+
+  function handleInputChange(value: string) {
+    setEmail(value);
+    setError("");
+    const filtered = getFilteredUsers(value);
+    setSuggestions(filtered);
+    setShowSuggestions(filtered.length > 0);
+    setActiveSuggestion(-1);
+  }
+
+  function selectSuggestion(user: UserInfo) {
+    setEmail(user.email);
+    setShowSuggestions(false);
+    setActiveSuggestion(-1);
+    inputRef.current?.focus();
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (!showSuggestions || suggestions.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveSuggestion((prev) =>
+        prev < suggestions.length - 1 ? prev + 1 : 0
+      );
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveSuggestion((prev) =>
+        prev > 0 ? prev - 1 : suggestions.length - 1
+      );
+    } else if (e.key === "Enter" && activeSuggestion >= 0) {
+      e.preventDefault();
+      selectSuggestion(suggestions[activeSuggestion]);
+    } else if (e.key === "Escape") {
+      setShowSuggestions(false);
+    }
+  }
+
   async function handleShare(e: React.FormEvent) {
     e.preventDefault();
     if (!email.trim()) return;
 
     setLoading(true);
     setError("");
+    setShowSuggestions(false);
 
     const res = await fetch(`/api/documents/${docId}/share`, {
       method: "POST",
@@ -80,13 +146,62 @@ export default function ShareModal({
           {isOwner && (
             <form onSubmit={handleShare} className="mb-4">
               <div className="flex gap-2">
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter email address..."
-                  className="flex-1 px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                />
+                <div className="relative flex-1">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={email}
+                    onChange={(e) => handleInputChange(e.target.value)}
+                    onFocus={() => {
+                      const filtered = getFilteredUsers(email);
+                      if (filtered.length > 0) setShowSuggestions(true);
+                    }}
+                    onBlur={() => {
+                      setTimeout(() => setShowSuggestions(false), 150);
+                    }}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Type a name or email..."
+                    autoComplete="off"
+                    className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                  />
+
+                  {showSuggestions && suggestions.length > 0 && (
+                    <div
+                      ref={suggestionsRef}
+                      className="absolute top-full left-0 right-0 mt-1 bg-background border border-border rounded-lg shadow-lg z-10 overflow-hidden"
+                    >
+                      {suggestions.map((user, i) => (
+                        <button
+                          key={user.id}
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => selectSuggestion(user)}
+                          className={cn(
+                            "w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors cursor-pointer",
+                            i === activeSuggestion
+                              ? "bg-primary/10"
+                              : "hover:bg-muted"
+                          )}
+                        >
+                          <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            <span className="text-xs font-semibold text-primary">
+                              {user.name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium truncate">
+                              {user.name}
+                            </div>
+                            <div className="text-xs text-muted-fg truncate">
+                              {user.email}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <select
                   value={permission}
                   onChange={(e) => setPermission(e.target.value)}
